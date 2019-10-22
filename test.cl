@@ -1,7 +1,9 @@
 #!/usr/bin/env clisp
 
-(defparameter *items* '((living-room . bottle)
-                        (living-room . axe)))
+(defparameter *items* '(bottle axe frog chain))
+(defparameter *item-locations* '((bottle . living-room)
+                                 (axe    . living-room)
+                                 (frog   . garden)))
 
 (defparameter *edges* '((living-room  (garden east door)
                                       (attic upstairs ladder))
@@ -18,11 +20,10 @@
 (defparameter *location* 'living-room)
 
 ;;; Description generators
-(defun items-at (items location)
-  (mapcar #'cdr
-	  (remove-if
-	   (complement (lambda (x) (eq (car x) location)))
-	   items)))
+(defun items-at (items item-locations location)
+  (labels ((at-loc-p (item)
+             (eq (cdr (assoc item item-locations)) location)))
+    (remove-if (complement #'at-loc-p) items)))
 
 (defun describe-path (path)
   `(there is a ,(caddr path) going ,(cadr path) from here.))
@@ -30,43 +31,44 @@
 (defun describe-paths (edges location)
   (apply #'append (mapcar #'describe-path (cdr (assoc location edges)))))
 
-(defun describe-items (items location)
-  (apply #'append (mapcar (lambda (item)
-            `(there is a ,item on the ground.))
-          (items-at items location))))
+(defun describe-items (items item-locations location)
+  (apply #'append
+         (mapcar
+           (lambda (item)
+             `(there is a ,item on the ground.))
+           (items-at items item-locations location))))
 
 (defun describe-location (locations location)
   (cdr (assoc location locations)))
 
-(defun describe-room (location) 
+(defun describe-room (location)
   (append (describe-location *locations* location)
-               (describe-items *items* location)
-               (describe-paths *edges* location)))
+          (describe-items *items* *item-locations* location)
+          (describe-paths *edges* location)))
 
 ;;; Game functions
 (defun look () (describe-room *location*))
 (defun walk (direction)
   (let* ((edges (cdr (assoc *location* *edges*)))
-         (next (find direction
-                     edges
-                     :key #'cadr)))
+         (next (find direction edges :key #'cadr)))
   (if next
     (progn (setf *location* (car next))
            (look))
     '(You cannot go that way))))
 
 (defun pickup (item)
-  (let ((items (items-at *items* *location*)))
+  (let ((items (items-at *items* *item-locations* *location*)))
     (if (member item items)
-      `(You pick up the ,item))
-      '(You cannot pick that up)))
+      (progn (push `(,item body) *item-locations*)
+             `(You pick up the ,item))
+      '(You cannot pick that up))))
 
 
 
 ;(defun game-eval (input)
 ;  (let ((allowed-commands '(look pickup walk)))
-;    (if (member input allowed-commands) 
-      
+;    (if (member input allowed-commands)
+
 
 (defun game-read ()
   (concatenate 'string "(" (read) ")"))
@@ -77,5 +79,6 @@
 (print (walk 'west))
 (print (walk 'upstairs))
 (print (walk 'downstairs))
-(pickup 'axe)
-(pickup 'dildo)
+(print (pickup 'axe))
+(print (pickup 'dildo))
+(print (look))
