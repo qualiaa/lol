@@ -66,4 +66,31 @@
   (dot->png fname
             (lambda () (graph->dot nodes edges))))
 
-(graph->png "wizard.dot" *locations* *edges*)
+;;; Undirected graph
+(defun uedges->dot (edges)
+  (maplist (lambda (lst)
+             (mapc (lambda (edge)
+                     (unless (assoc (car edge) (cdr lst))
+                       (fresh-line)
+                       (princ (dot-name (caar lst)))
+                       (princ "--")
+                       (princ (dot-name (car edge)))
+                       (princ "[label=\"")
+                       (princ (caddr edge))
+                       (princ "\"];")))
+                   (cdar lst)))
+             edges))
+                       
+(defun ugraph->dot (nodes edges)
+  (fresh-line)
+  (princ "graph{")
+  (nodes->dot nodes)
+  (uedges->dot edges)
+  (princ "}"))
+
+(defun ugraph->png (fname nodes edges)
+  (dot->png fname
+            (lambda () (ugraph->dot nodes edges))))
+
+;(graph->png "wizard.dot" *locations* *edges*)
+(ugraph->png "wizard.dot" *locations* *edges*)
