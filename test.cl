@@ -60,7 +60,7 @@
 (defun pickup (item)
   (let ((items (items-at *items* *item-locations* *location*)))
     (if (member item items)
-      (progn (push `(,item . body) *item-locations*)
+      (progn (push (cons item 'body) *item-locations*)
              `(You pick up the ,item))
       '(You cannot pick that up))))
 
