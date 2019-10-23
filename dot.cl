@@ -15,5 +15,5 @@
 (load "graph-util")
 
 
-;(graph->png "wizard.dot" *locations* *edges*)
-(ugraph->png "wizard.dot" *locations* *edges*)
+(graph->png "wizard-directed.dot" *locations* *edges*)
+(ugraph->png "wizard-undirected.dot" *locations* *edges*)
