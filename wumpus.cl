@@ -77,7 +77,73 @@
 (defun edges-to-alist (edge-list)
   (mapcar (lambda (node)
             (cons node
-                  (list (remove-duplicates (mapcar #'cdr
+                  (mapcar #'list (remove-duplicates (mapcar #'cdr
                                              (direct-edges node edge-list))
                                            :test #'equal))))
     (remove-duplicates (mapcar #'car edge-list))))
+
+(defun make-city-edges ()
+  (let* ((nodes (loop for i from 1 to *node-num*
+                      collect i))
+         (edge-list (join-all-islands nodes (make-edge-list)))
+         (cops (remove-if-not (lambda (x)
+                                (zerop (random *cop-odds*)))
+                              edge-list)))
+    (add-cops (edges-to-alist edge-list) cops)))
+
+(defun add-cops (edge-alist edges-with-cops)
+  (mapcar (lambda (x)
+            (let ((node1 (car x))
+                  (node1-edges (cdr x)))
+              (cons node1
+                    (mapcar (lambda (edge)
+                              (let ((node2 (car edge)))
+                                (if (intersection (edge-pair node1 node2)
+                                                  edges-with-cops
+                                                  :test #'equal)
+                                  (list node2 'cops)
+                                  edge)))
+                            node1-edges))))
+          edge-alist))
+
+(defun neighbours (a edge-alist)
+  (mapcar #'car (cdr (assoc a edge-alist))))
+
+(defun one-away (a b edge-alist)
+  (member b (neighbours a edge-alist)))
+
+(defun two-away (a b edge-alist)
+  (or (one-away a b edge-alist)
+      (some (lambda (c)
+              (one-away b c edge-alist))
+            (neighbours a edge-alist))))
+
+(defun make-city-nodes (edge-alist)
+  (let ((wumpus (random-node))
+        (glow-worms (loop for i below *worm-num* collect (random-node))))
+    (loop for n from 1 to *node-num*
+          collect (append (list n)
+                          (cond ((eq n wumpus) '(wumpus))
+                                ((two-away n wumpus edge-alist) '(blood!)))
+                          (cond ((member n glow-worms) '(glow-worms!))
+                                ((some (lambda (worm-node)
+                                         (one-away worm-node n edge-alist))
+                                       glow-worms) '(lights!)))
+                          (when (some #'cdr (cdr (assoc n edge-alist)))
+                            '(sirens!))))))
+
+(defun new-game ()
+  (setf *edges* (make-city-edges))
+  (setf *nodes* (make-city-nodes *edges*))
+  (setf *player-pos* (find-empty-node))
+  (if *player-pos*
+    (progn (setf *visited-nodes* (list *player-pos*))
+           (draw-city))
+    (new-game)))
+
+(defun find-empty-node ()
+  (find 'nil *nodes* :key #'cdr))
+
+(defun draw-city ()
+  (ugraph->png "congestion-city.dot" *nodes* *edges*))
+
