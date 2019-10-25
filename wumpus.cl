@@ -138,12 +138,74 @@
   (setf *player-pos* (find-empty-node))
   (if *player-pos*
     (progn (setf *visited-nodes* (list *player-pos*))
-           (draw-city))
+           (draw-city)
+           (draw-known-city)
+           (launch-feh "known-city.dot.png"))
     (new-game)))
 
 (defun find-empty-node ()
-  (find 'nil *nodes* :key #'cdr))
+  (let ((result (find 'nil *nodes* :key #'cdr)))
+    (when result (car result))))
 
 (defun draw-city ()
   (ugraph->png "congestion-city.dot" *nodes* *edges*))
+
+(defun known-city-nodes ()
+  (mapcar (lambda (node)
+            (if (member node *visited-nodes*)
+              (let ((n (assoc node *nodes*)))
+                (if (eql node *player-pos*)
+                  (append n '(*))
+                  n))
+              (list node '?)))
+          (remove-duplicates
+            (append *visited-nodes*
+                    (mapcan (lambda (node)
+                              (mapcar #'car
+                                      (cdr (assoc node *edges*))))
+                            *visited-nodes*)))))
+
+(defun known-city-edges ()
+  (mapcar (lambda (node)
+            (cons node (mapcar (lambda (x)
+                                  (if (member (car x) *visited-nodes*)
+                                    x
+                                    (list (car x))))
+                                (cdr (assoc node *edges*)))))
+           *visited-nodes*))
+
+(defun draw-known-city ()
+  (ugraph->png "known-city.dot" (known-city-nodes) (known-city-edges)))
+
+(defun launch-feh (file)
+  (ext:run-shell-command (concatenate 'string "feh -. -R1 " file) :wait nil))
+
+(defun walk (pos)
+  (handle-direction pos nil))
+(defun charge (pos)
+  (handle-direction pos t))
+
+(defun handle-direction (pos charging)
+  (let ((edge (assoc pos
+                     (cdr (assoc *player-pos* *edges*)))))
+    (if edge
+      (handle-new-place edge pos charging)
+      (princ "That location does not exist!"))))
+
+(defun handle-new-place (edge pos charging)
+  (let* ((node (assoc pos *nodes*))
+         (has-worm (and (member 'glow-worm node)
+                   (not (member pos *visited-nodes*)))))
+    (pushnew pos *visited-nodes*)
+    (setf *player-pos* pos)
+    (draw-known-city)
+    (cond ((member 'cops edge) (princ "You ran into the cops. Game Over."))
+          ((member 'wumpus node) (if charging
+                                   (princ "You found the Wumpus!")
+                                   (princ "You ran into the Wumpus")))
+          (charging (princ "You wasted your last bullet. Game Over"))
+          (has-worm (let ((new-pos (random-node)))
+                      (princ "You ran into a Glow Worm Gang! You're now at")
+                      (princ new-pos)
+                      (handle-new-place nil new-pos nil))))))
 
