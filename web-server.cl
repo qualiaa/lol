@@ -14,13 +14,13 @@
                   (#\% (cons (http-char (cadr lst) (caddr lst)) (f (cdddr lst))))
                   (#\+ (cons #\space (f (cdr lst))))
                   (otherwise (cons (car lst) (f (cdr lst))))))))
-    (coerce (f (coerse s 'list)) 'string)))
+    (coerce (f (coerce s 'list)) 'string)))
 
 (defun parse-params (s)
   (let ((i1 (position #\= s))
         (i2 (position #\& s)))
     (cond (i1 (cons (cons (intern (string-upcase (subseq s 0 i1)))
-                          (decode-param (subseq  (1+ i1) i2)))
+                          (decode-param (subseq s (1+ i1) i2)))
                     (and i2 (parse-params (subseq s (1+ i2))))))
           ((equal s "") nil)
           (t s))))
@@ -50,7 +50,7 @@
         (read-sequence content stream)
         (parse-params content)))))
 
-(defun serve (request-handler)
+(defun serve (request-handler port &optional (default 8080))
   (let ((socket (socket-server 8080)))
     (unwind-protect
       (loop (with-open-stream (stream (socket-accept socket))
@@ -62,3 +62,11 @@
                      (*standard-output* stream))
                 (funcall request-handler path header params))))
       (socket-server-close socket))))
+
+(defun hello-handler (path header params)
+  (if (equal path "greetings")
+    (let ((name (assoc 'name params)))
+      (if name
+        (format t "<html><p>Nice to meet you, ~a!</p></html>" (cdr name))
+        (princ "<html><form>What is your name?<input name='name'/></form></html>")))
+    (princ "<html><p><Sorry, I don't know that</p></html>")))
