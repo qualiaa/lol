@@ -50,8 +50,8 @@
         (read-sequence content stream)
         (parse-params content)))))
 
-(defun serve (request-handler port &optional (default 8080))
-  (let ((socket (socket-server 8080)))
+(defun serve (request-handler &optional (port 8080))
+  (let ((socket (socket-server port)))
     (unwind-protect
       (loop (with-open-stream (stream (socket-accept socket))
               (let* ((url    (parse-url (read-line stream)))
