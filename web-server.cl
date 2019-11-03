@@ -64,12 +64,16 @@
       (socket-server-close socket))))
 
 (defun html-wrapper (body)
-  (concatenate 'string
-               "<!DOCTYPE html>"
-               "<html>"
-               body
-               "</html>"))
-
+  (format nil
+"<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset=\"utf-8\">
+    </head>
+    <body>
+        ~a
+    </body>
+</html>" body))
 
 (defun hello-handler (path header params)
   (princ (http-response (html-wrapper
@@ -78,7 +82,7 @@
                (if name
                  (format nil "<p>Nice to meet you, ~a!</p>" (cdr name))
                  "<form>What is your name?<input name='name'/></form>"))
-             "<p><Sorry, I don't know that</p>")))))
+             "<p>Sorry, I don't know that</p>")))))
 
 
 (defparameter *reason-phrases* '(
@@ -127,10 +131,19 @@
 (defun http-status-line (status)
   (format nil "HTTP/1.1 ~D ~a" status (cdr (assoc status *reason-phrases*))))
 
+(defparameter *crlf* (concatenate 'string '(#\return #\linefeed)))
+
 
 (defun http-response (&optional (body nil) (status 200))
   (concatenate 'string
-    (http-status-line status)
-    (format nil "~c~c" #\return #\linefeed)
+    (http-status-line status) *crlf*
+    (response-headers body)
     body))
 
+(defun response-headers (&optional body)
+  (concatenate 'string
+    "Content-Type: text/html; charset=UTF-8" *crlf*
+    "Connection: close" *crlf*
+    "Server: jamiehttp" *crlf*
+    (when body
+      (format nil "Content-Length: ~D~a" (length body) *crlf*))))
