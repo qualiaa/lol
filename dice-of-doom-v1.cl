@@ -49,7 +49,7 @@
            (dice (pos)
                  (cadr (aref board pos))))
     (mapcan (lambda (src)
-              (when (eq (player src) (cur-player))
+              (when (eq (player src) cur-player)
                 (mapcan (lambda (dst)
                           (when (and (not (eq (player dst) cur-player))
                                      (> (dice src) (dice dst)))
@@ -64,7 +64,7 @@
                                                (+ spare-dice (dice dst))
                                                nil)))))
                         (neighbours src))))
-            (loop for n below (*board-hexnum*)
+            (loop for n below *board-hexnum*
                   collect n))))
 
 (defun neighbours (pos)
@@ -96,3 +96,69 @@
                                  (f (cdr lst) (1- n)))
                            (cons (car lst) (f (cdr lst) n))))))))
     (board-array (f (coerce board 'list) spare-dice))))
+
+(defun play-vs-human (tree)
+  (print-info tree)
+  (if (caddr tree)
+    (play-vs-human (handle-human tree))
+    (announce-winner (cadr tree))))
+
+(defun print-info (tree)
+  (fresh-line)
+  (format t "current player = ~a" (player-letter (car tree)))
+  (draw-board (cadr tree)))
+
+(defun handle-human (tree)
+  (fresh-line)
+  (princ "choose your move: ")
+  (let ((moves (caddr tree)))
+    (loop for move in moves
+          for n from 1
+          do (let ((action (car move)))
+               (fresh-line)
+               (format t "~a. " n)
+               (if action
+                 (format t "~a -> ~a" (car action) (cadr action))
+                 (princ "end turn"))))
+    (fresh-line)
+    (cadr (nth (1- (read)) moves))))
+
+(defun winners (board)
+  (let* ((hex-winners (loop for hex across board
+                            collect (car hex)))
+         (totals (loop for player below *num-players*
+                       collect (cons player (count player hex-winners))))
+         (best (apply #'max (mapcar #'cdr totals))))
+    (mapcar #'car
+            (remove-if (lambda (x)
+                         (not (eq (cdr x) best)))
+                       totals))))
+
+(defun announce-winner (board)
+  (fresh-line)
+  (let ((w (winners board)))
+    (if (> (length w) 1)
+      (format t "The game is a tie between ~a" (mapcar #'player-letter w))
+      (format t "The winner is ~a" (player-letter (car w))))))
+
+(defun rate-position (tree player)
+  (let ((moves (caddr tree)))
+    (if moves
+      (apply (if (eq (car tree) player)
+               #'max
+               #'min)
+             (get-ratings tree player))
+      (let ((w (winners (cadr tree))))
+        (if (member player w)
+          (/ 1 (length w))
+          0)))))
+
+(defun get-ratings (tree player)
+  (mapcar (lambda (move)
+            (rate-position (cadr move) player))
+          (caddr tree)))
+
+(defun handle-computer (tree)
+  (let ((ratings (get-ratings tree (car tree))))
+    (cadr (nth (position (apply #'max ratings) ratings) (caddr tree)))))
+
