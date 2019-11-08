@@ -38,9 +38,9 @@
     moves
     (cons (list nil
                 (game-tree (add-new-dice board player spare-dice)
-                           player
+                           (mod (1+ player) *num-players*)
                            (1- spare-dice)
-                           (mod (1+ player) *num-players*)))
+                           t))
           moves)))
 
 (defun attacking-moves (board cur-player spare-dice)
@@ -73,7 +73,7 @@
     (loop for p in (append (list up down)
                            (unless (zerop (mod pos *board-size*))
                              (list (1- up) (1- pos)))
-                           (unless (zerop (mod (1+ down) *board-size*))
+                           (unless (zerop (mod (1+ pos) *board-size*))
                              (list (1+ pos) (1+ down))))
           when (and (>= p 0) (< p *board-hexnum*))
             collect p)))
@@ -162,3 +162,32 @@
   (let ((ratings (get-ratings tree (car tree))))
     (cadr (nth (position (apply #'max ratings) ratings) (caddr tree)))))
 
+(defun play-vs-computer (tree)
+  (print-info tree)
+  (cond ((null (caddr tree)) (announce-winner (cadr tree)))
+        ((zerop (car tree)) (play-vs-computer (handle-human tree)))
+        (t (play-vs-computer (handle-computer tree)))))
+
+(let ((old-neighbours #'neighbours)
+      (previous (make-hash-table)))
+  (defun neighbours (pos)
+    (or (gethash pos previous)
+        (setf (gethash pos previous) (funcall old-neighbours pos)))))
+
+(defun game-tree (board player spare-dice first-move)
+
+(let ((f #'game-tree)
+      (previous (make-hash-table) :test #'equalp))
+  (defun game-tree (&rest rest)
+    (or (gethash rest previous)
+        (setf (gethash rest previous) (apply f rest)))))
+
+(let ((f (symbol-function 'rate-position))
+      (previous (make-hash-table)))
+  (defun rate-position (tree player)
+    (let ((tab (gethash player previous)))
+      (unless tab
+        (setf tab (setf (gethash player previous) (make-hash-table))))
+      (or (gethash tree tab)
+          (setf (gethash tree tab)
+                (funcall f tree player))))))
