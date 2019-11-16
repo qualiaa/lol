@@ -58,3 +58,14 @@
             (lazy-cons x a))
           (reverse lst)
           :initial-value lazy-nil))
+
+(defun lazy-mapcan (f lst)
+  (labels ((g (current-items rest)
+              (if current-items
+                (cons (car current-items) (lazy (g (cdr current-items) rest)))
+                (unless (lazy-null rest)
+                  (g (funcall f (lazy-car rest)) (lazy-cdr rest))))))
+    (lazy (g (funcall f (lazy-car lst)) (lazy-cdr lst)))))
+
+(defun test-fn (x)
+  (loop for i to x collect i))
