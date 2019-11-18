@@ -12,9 +12,8 @@
 (defun force (thunk)
   (funcall thunk))
 
-; LoL defines this as a macro - not clear why?
-(defun lazy-cons (a d)
-  (lazy (cons a d)))
+(defmacro lazy-cons (a d)
+  `(lazy (cons ,a ,d)))
 
 (defun lazy-car (lst)
   (car (force lst)))
@@ -66,6 +65,3 @@
                 (unless (lazy-null rest)
                   (g (funcall f (lazy-car rest)) (lazy-cdr rest))))))
     (lazy (g (funcall f (lazy-car lst)) (lazy-cdr lst)))))
-
-(defun test-fn (x)
-  (loop for i to x collect i))
